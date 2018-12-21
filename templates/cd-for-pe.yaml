@@ -1,0 +1,68 @@
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: cd-for-pe
+  labels:
+    app: cd-for-pe
+  namespace: ci-cd
+spec:
+  type: NodePort
+  ports:
+    - port: 7000
+      nodePort: 33801
+      name: "tcp7000"
+    - port: 8000
+      nodePort: 33802
+      name: "tcp8000"
+    - port: 8080
+      nodePort: 33803
+      name: "tcp8080"
+  selector:
+    app: cd-for-pe
+    tier: frontend
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cd-for-pe
+  labels:
+    app: cd-for-pe
+    tier: frontend
+  namespace: ci-cd
+spec:
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: cd-for-pe
+      tier: frontend
+  template:
+    metadata:
+      labels:
+        app: cd-for-pe
+        tier: frontend
+    spec:
+      containers:
+        - image: puppet/cd-for-pe:latest
+          name: cd-for-pe
+          env:
+            - name: USER
+              valueFrom:
+                secretKeyRef:
+                  name: cd-for-pe-mariadb-secrets
+                  key: mysql_user
+            - name: MYSQL_PWD
+              valueFrom:
+                secretKeyRef:
+                  name: cd-for-pe-mariadb-secrets
+                  key: mysql_password
+            - name: DB_ENDPOINT
+              value: mysql://cd-for-pe-mariadb.ci-cd.svc.cluster.local:3306/pipelines
+          ports:
+            - containerPort: 7000
+              name: "tcp7000"
+            - containerPort: 8000
+              name: "tcp8000"
+            - containerPort: 8080
+              name: "tcp8080"
